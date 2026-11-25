@@ -73,15 +73,33 @@ mkdir -p $APPDIR/Contents/MacOS
 ln -s ../Frameworks/Python.framework/Versions/$PYVER/bin/$PYTHON "$APPDIR/Contents/MacOS/FFPython"
 
 # Relocated Mach-O files need a fresh signature. A Developer ID identity is
-# recommended; an ad-hoc signature (-) may be rejected by endpoint security.
+# recommended for notarization; an ad-hoc signature (-) runs after the user
+# removes the download quarantine. codesign --deep only signs nested bundles,
+# not the loose dylibs that lddx relocates under Contents/Resources, so sign
+# every Mach-O file first and then re-seal the bundle and its frameworks.
 if [ -n "${FONTFORGE_CODESIGN_IDENTITY:-}" ]; then
-    echo "Codesigning bundle with $FONTFORGE_CODESIGN_IDENTITY..."
-    if [ "$FONTFORGE_CODESIGN_IDENTITY" = "-" ]; then
-        codesign --force --deep --sign - "$APPDIR"
+    SIGN_IDENTITY="$FONTFORGE_CODESIGN_IDENTITY"
+    SIGN_ARGS=(--force)
+    if [ "$SIGN_IDENTITY" = "-" ]; then
+        SIGN_ARGS+=(--sign -)
     else
-        codesign --force --deep --options runtime --timestamp \
-            --sign "$FONTFORGE_CODESIGN_IDENTITY" "$APPDIR"
+        SIGN_ARGS+=(--options runtime --timestamp --sign "$SIGN_IDENTITY")
     fi
+
+    echo "Codesigning bundle with $SIGN_IDENTITY..."
+    signed=0
+    while IFS= read -r -d '' file; do
+        case "$file" in
+            */_CodeSignature/*) continue ;;
+        esac
+        if file -b "$file" | grep -q '^Mach-O'; then
+            codesign "${SIGN_ARGS[@]}" "$file"
+            signed=$((signed + 1))
+        fi
+    done < <(find "$APPDIR" -type f -print0)
+    echo "Signed $signed individual Mach-O files."
+
+    codesign "${SIGN_ARGS[@]}" --deep "$APPDIR"
     codesign --verify --deep --strict "$APPDIR"
 fi
 

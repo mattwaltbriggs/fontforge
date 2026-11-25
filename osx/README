@@ -21,8 +21,14 @@ because current Homebrew dependencies are built for recent macOS releases.
 Set `MACOS_DEPLOYMENT_TARGET=11.0` to target the oldest Apple Silicon macOS,
 provided the dependency versions allow it.
 
-Endpoint security tools may reject ad-hoc signed bundles after `lddx`
-relocates the dependencies. Pass a Developer ID identity to codesign the
+The local build script signs every bundled Mach-O file and the outer bundle
+ad-hoc by default. Ad-hoc signed builds are not notarized, so macOS Gatekeeper
+will quarantine a downloaded copy. Remove that quarantine before launching:
+
+    xattr -dr com.apple.quarantine /Applications/FontForge.app
+    open /Applications/FontForge.app
+
+For a notarized release, pass a Developer ID identity. The build signs the
 finished bundle with the hardened runtime and a secure timestamp, both of
 which are required for notarization:
 
