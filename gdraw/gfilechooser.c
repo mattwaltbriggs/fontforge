@@ -359,6 +359,15 @@ static void GFileChooserFillList(GFileChooser *gfc, const unichar_t *dirname_) {
         if (fcdata != fc_hide) {
             GTextInfo *me = calloc(1, sizeof(GTextInfo));
             me->text = def2u_copy(dent->d_name);
+            /* A filename that cannot be converted to the display encoding
+               must not become a list entry: several list consumers assume
+               that every entry has a name. */
+            if ( me->text == NULL ) {
+                free(me);
+                free((char *) ent.fullpath);
+                free((char *) ent.mimetype);
+                continue;
+            }
             me->image = GFileChooserPickIcon(&ent);
             me->fg = COLOR_DEFAULT;
             me->bg = COLOR_DEFAULT;
@@ -577,6 +586,8 @@ return( NULL );		/* Can't complete if not in cur directory or has wildcards */
     for ( doit=0; doit<2; ++doit ) {
 	cnt=0;
 	for ( i=0; i<len; ++i ) {
+	    if ( ti[i]->text==NULL )
+		continue;
 	    if ( u_strncmp(ti[i]->text,spt,match_len)==0 ) {
 		if ( doit ) {
 		    if ( ti[i]->checked /* isdirectory */ ) {
@@ -689,6 +700,8 @@ return( true );
 		/* Not selected? ignore it */;
 	    else if ( all[i]->checked )		/* Directory */
 		dirpos = i;
+	    else if ( all[i]->text==NULL )
+		/* No name? ignore it */;
 	    else {
 		len += u_strlen( all[i]->text ) + 2;
 		++cnt;
@@ -710,6 +723,8 @@ return( true );
 return(true);
     gfc = (GFileChooser *) GGadgetGetUserData(gl);
     ti = GGadgetGetListItem(gl,apos);
+    if ( ti==NULL || ti->text==NULL )
+return( true );
     if ( e->u.control.subtype==et_listselected && cnt==1 ) {
 	/* Nope, quite doesn't work. Goal is to remember first filename. But */
 	/*  if user types into the list box we'll (probably) get several diff*/
@@ -737,7 +752,7 @@ return(true);
 	unichar_t *val, *upt = malloc((len+1)*sizeof(unichar_t));
 	val = upt;
 	for ( i=0; i<listlen; ++i ) {
-	    if ( all[i]->selected ) {
+	    if ( all[i]->selected && all[i]->text!=NULL ) {
 		u_strcpy(upt,all[i]->text);
 		upt += u_strlen(upt);
 		if ( --cnt>0 ) {
@@ -1746,7 +1761,7 @@ unichar_t *GFileChooserFileNameOfPos(GGadget *g, int pos) {
     unichar_t *curdir, *file;
 
     ti = GGadgetGetListItem(list,pos);
-    if ( ti==NULL )
+    if ( ti==NULL || ti->text==NULL )
 return( NULL );
 
     curdir = GFileChooserGetCurDir(gfc,-1);
