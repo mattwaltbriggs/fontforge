@@ -4,6 +4,16 @@
 	<dict>
 		<key>CFBundleDevelopmentRegion</key>
 		<string>English</string>
+		<key>CFBundleDisplayName</key>
+		<string>FontForge</string>
+		<key>CFBundleSupportedPlatforms</key>
+		<array>
+			<string>MacOSX</string>
+		</array>
+		<key>LSMinimumSystemVersion</key>
+		<string>@MACOS_DEPLOYMENT_TARGET@</string>
+		<key>NSHighResolutionCapable</key>
+		<true />
 		<key>CFBundleDocumentTypes</key>
 		<array>
 			<dict>

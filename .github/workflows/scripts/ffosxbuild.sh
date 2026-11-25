@@ -60,8 +60,30 @@ $LDDX --overwrite --modify-special-paths --recursive --ignore-prefix /opt/X11 --
     bin/ $APPDIR/Contents/Frameworks/Python.framework/ lib/
 popd
 
+# Homebrew's certifi ships a symlink to a location that does not exist inside
+# the bundle. Replace it with the system CA bundle so the bundle can be
+# codesigned and so Python's SSL module works when launched from the .app.
+CACERT="$APPDIR/Contents/Resources/opt/local/lib/python$PYVER/site-packages/pip/_vendor/certifi/cacert.pem"
+if [ -L "$CACERT" ] && [ ! -e "$CACERT" ]; then
+    rm -f "$CACERT"
+    cp /etc/ssl/cert.pem "$CACERT"
+fi
+
 mkdir -p $APPDIR/Contents/MacOS
 ln -s ../Frameworks/Python.framework/Versions/$PYVER/bin/$PYTHON "$APPDIR/Contents/MacOS/FFPython"
+
+# Relocated Mach-O files need a fresh signature. A Developer ID identity is
+# recommended; an ad-hoc signature (-) may be rejected by endpoint security.
+if [ -n "${FONTFORGE_CODESIGN_IDENTITY:-}" ]; then
+    echo "Codesigning bundle with $FONTFORGE_CODESIGN_IDENTITY..."
+    if [ "$FONTFORGE_CODESIGN_IDENTITY" = "-" ]; then
+        codesign --force --deep --sign - "$APPDIR"
+    else
+        codesign --force --deep --options runtime --timestamp \
+            --sign "$FONTFORGE_CODESIGN_IDENTITY" "$APPDIR"
+    fi
+    codesign --verify --deep --strict "$APPDIR"
+fi
 
 # Package it up
 if [ ! -z "$CI" ]; then

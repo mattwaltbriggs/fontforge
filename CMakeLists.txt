@@ -5,6 +5,13 @@ cmake_minimum_required(VERSION 3.5)
 # Update the version for each new release
 project(fontforge VERSION 20251009 LANGUAGES C CXX)
 
+if(APPLE)
+  if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS version" FORCE)
+  endif()
+  set(MACOS_DEPLOYMENT_TARGET "${CMAKE_OSX_DEPLOYMENT_TARGET}")
+endif()
+
 # No in source builds
 if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
   message(FATAL_ERROR "In-source builds are disallowed. Create a build folder to run CMake from.")

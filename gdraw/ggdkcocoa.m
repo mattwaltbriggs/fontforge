@@ -33,7 +33,7 @@
 #include <Cocoa/Cocoa.h>
 
 char *_GGDKDrawCocoa_GetClipboardText(void) {
-    NSString *ns_clip = [[NSPasteboard generalPasteboard] stringForType:NSStringPboardType];
+    NSString *ns_clip = [[NSPasteboard generalPasteboard] stringForType:NSPasteboardTypeString];
     if (ns_clip == nil) {
         return NULL;
     }
@@ -52,7 +52,7 @@ void _GGDKDrawCocoa_SetClipboardText(const char *text) {
     }
 
     NSPasteboard *pb = [NSPasteboard generalPasteboard];
-    [pb declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
-    [pb setString:ns_clip forType:NSStringPboardType];
+    [pb clearContents];
+    [pb setString:ns_clip forType:NSPasteboardTypeString];
     [ns_clip release];
 }

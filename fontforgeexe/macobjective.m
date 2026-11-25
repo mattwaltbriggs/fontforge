@@ -48,6 +48,7 @@
 - (bool)setReady;
 - (void)handleOpenApplicationEvent:(NSAppleEventDescriptor*)event withReplyEvent:(NSAppleEventDescriptor*)replyEvent;
 - (void)handleOpenDocumentsEvent:(NSAppleEventDescriptor*)event withReplyEvent:(NSAppleEventDescriptor*)replyEvent;
+- (void)handlePreferencesEvent:(NSAppleEventDescriptor*)event withReplyEvent:(NSAppleEventDescriptor*)replyEvent;
 @end
 
 @implementation FFApplication {
@@ -57,10 +58,8 @@
 
 - (void)registerEventHandlers
 {
-    // The old Carbon approach used to register a preferences handler
-    // with kAEShowPreferences. Under Cocoa, you would have to make that
-    // menu yourself. Oh well. See also:
-    // https://www.mail-archive.com/carbon-dev@lists.apple.com/msg00280.html
+    // Keep the classic kAEShowPreferences AppleEvent working so Finder and
+    // AppleScript can open the FontForge preferences dialog.
     NSAppleEventManager* eventManager = [NSAppleEventManager sharedAppleEventManager];
     [eventManager setEventHandler:self
                       andSelector:@selector
@@ -82,16 +81,29 @@
                        andEventID:kAEOpenDocuments];
     [eventManager setEventHandler:self
                       andSelector:@selector
+                      (handleOpenDocumentsEvent:
+                                 withReplyEvent:)
+                    forEventClass:kCoreEventClass
+                       andEventID:kAEOpenContents];
+    [eventManager setEventHandler:self
+                      andSelector:@selector
                       (handleQuitEvent:
                           withReplyEvent:)
                     forEventClass:kCoreEventClass
                        andEventID:kAEQuitApplication];
+    [eventManager setEventHandler:self
+                      andSelector:@selector
+                      (handlePreferencesEvent:
+                          withReplyEvent:)
+                    forEventClass:kCoreEventClass
+                       andEventID:kAEShowPreferences];
 }
 
 - (bool)setReady
 {
     self->ready = true;
     if (self->pendingFiles) {
+        [NSApp activateWithOptions:NSApplicationActivateIgnoringOtherApps];
         for (NSURL* fileUrl in self->pendingFiles) {
             ViewPostScriptFont([fileUrl fileSystemRepresentation], 0);
         }
@@ -105,6 +117,7 @@
 - (void)handleOpenApplicationEvent:(NSAppleEventDescriptor*)event withReplyEvent:(NSAppleEventDescriptor*)replyEvent
 {
     if (self->ready && fv_list == NULL) {
+        [NSApp activateWithOptions:NSApplicationActivateIgnoringOtherApps];
         _FVMenuOpen(NULL);
     }
 }
@@ -122,7 +135,12 @@
             continue;
         }
 
+        // Opening a document from Finder usually delivers a path, while drag
+        // and drop may deliver a file:// URL. Accept both forms.
         NSURL* fileUrl = [NSURL URLWithString:fileUrlStr];
+        if (!fileUrl || ![fileUrl isFileURL]) {
+            fileUrl = [NSURL fileURLWithPath:fileUrlStr];
+        }
         if (!fileUrl) {
             continue;
         }
@@ -138,7 +156,16 @@
             continue;
         }
 
+        [NSApp activateWithOptions:NSApplicationActivateIgnoringOtherApps];
         ViewPostScriptFont([fileUrl fileSystemRepresentation], 0);
+    }
+}
+
+- (void)handlePreferencesEvent:(NSAppleEventDescriptor*)event withReplyEvent:(NSAppleEventDescriptor*)replyEvent
+{
+    if (self->ready) {
+        [NSApp activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+        MenuPrefs(NULL, NULL, NULL);
     }
 }
 
