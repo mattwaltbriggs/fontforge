@@ -3,7 +3,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 # Update the version for each new release
-project(fontforge VERSION 20251009 LANGUAGES C CXX)
+project(fontforge VERSION 20261125 LANGUAGES C CXX)
 
 if(APPLE)
   if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
